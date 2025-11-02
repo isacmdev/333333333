@@ -1,0 +1,31 @@
+FROM gradle:8.5-jdk17-alpine AS builder
+
+# Instala Git en Alpine
+RUN apk add --no-cache git
+
+WORKDIR /app
+
+# Clona el repositorio
+RUN git clone https://github.com/isacmdev/aaaaaaaaaaa.git .
+
+# Construye específicamente el JAR (no WAR)
+RUN gradle bootJar --no-daemon -x test
+
+# DEBUG: Verificar qué se generó
+RUN echo "=== ARCHIVOS GENERADOS ===" && \
+    ls -la build/libs/ && \
+    find . -name "*.jar" -type f
+
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# Copia el JAR
+COPY --from=builder /app/build/libs/*.jar app.jar
+
+# Verificar que el JAR existe
+RUN echo "=== JAR FINAL ===" && ls -la app.jar
+
+EXPOSE 8083
+
+CMD ["java", "-jar", "app.jar"]

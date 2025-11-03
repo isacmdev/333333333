@@ -54,3 +54,11 @@ docker-compose up -d
 - `init-scripts/` - Scripts de inicialización de base de datos
   - `inventory.sql` - Script de inicialización para inventario
   - `products.sql` - Script de inicialización para productos
+
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %                 SWAGGER Y MONITOREO                           %
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  -http://localhost:8084/swagger-ui/index.html
+  -http://localhost:8083/webjars/swagger-ui/index.html#
+  -http://localhost:8083/monitoring/circuit-breaker-status

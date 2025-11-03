@@ -1,8 +1,10 @@
 CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
+    internal_code VARCHAR(100) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
+    category VARCHAR(150) NOT NULL,
     description TEXT,
-    images TEXT, 
+    images TEXT,
     price DECIMAL(10,2) NOT NULL,
     stock INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

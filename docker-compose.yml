@@ -1,6 +1,7 @@
-version: '3.9'
-
 services:
+  # ==================================================
+  # =============== POSTGRES PRODUCTS DB ==============
+  # ==================================================
   postgres:
     image: postgres:15-alpine
     container_name: demo-postgres
@@ -12,7 +13,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
+      - ./init-scripts/products.sql:/docker-entrypoint-initdb.d/products.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -22,6 +23,33 @@ services:
     networks:
       - demo-network
 
+  # ==================================================
+  # ============ POSTGRES INVENTORY DB ===============
+  # ==================================================
+  postgres-inventory:
+    image: postgres:15-alpine
+    container_name: inventory-postgres
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_inventory_data:/var/lib/postgresql/data
+      - ./init-scripts/inventory.sql:/docker-entrypoint-initdb.d/inventory.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - demo-network
+
+  # ==================================================
+  # ================== MONGODB =======================
+  # ==================================================
   mongodb:
     image: mongo:6
     container_name: demo-mongo
@@ -43,6 +71,9 @@ services:
       retries: 5
       start_period: 10s
 
+  # ==================================================
+  # =================== REDIS ========================
+  # ==================================================
   redis:
     image: redis:7-alpine
     container_name: demo-redis
@@ -61,27 +92,29 @@ services:
     networks:
       - demo-network
 
-  springboot-app:
+  # ==================================================
+  # ================= PRODUCTS APP =================
+  # ==================================================
+  springboot-products:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: demo-springboot
+      dockerfile: dockerfile.products
+    container_name: demo-products
     ports:
       - "8083:8083"
     environment:
-      # CORREGIDO: Usar R2DBC en lugar de JDBC
       SPRING_R2DBC_URL: r2dbc:postgresql://postgres:5432/products_db
       SPRING_R2DBC_USERNAME: postgres
       SPRING_R2DBC_PASSWORD: root
-      
-      # MongoDB
       SPRING_DATA_MONGODB_URI: mongodb://root:root@mongodb:27017/files_db?authSource=admin
-      
-      # Redis
+      SPRING_DATA_MONGODB_DATABASE: files_db
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      
+      APP_FILES_BASE_URL: http://localhost:8083
+      APP_IMAGES_BUCKET_NAME: images
+      APP_CACHE_TTL_PRODUCTS: PT5M
       SERVER_PORT: 8083
+      INVENTORY_SERVICE_URL: http://springboot-inventory:8084
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,12 +122,55 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      springboot-inventory:
+        condition: service_started
+    networks:
+      - demo-network
+    restart: unless-stopped
+
+  # ==================================================
+  # ================= INVENTORY APP =================
+  # ==================================================
+  springboot-inventory:
+    build:
+      context: .
+      dockerfile: dockerfile.inventory
+    container_name: demo-inventory
+    ports:
+      - "8084:8084"
+    environment:
+      # Configuración para JDBC
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-inventory:5432/inventory_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      
+      # Configuración JPA/Hibernate
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: true
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: true
+      
+      # Configuración del servidor
+      SERVER_PORT: 8084
+      SPRING_APPLICATION_NAME: inventory-service
+      
+      # Configuración HikariCP
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 10
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 2
+      SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: 10000
+      SPRING_DATASOURCE_HIKARI_POOL_NAME: HikariCP
+      
+    depends_on:
+      postgres-inventory:
+        condition: service_healthy
     networks:
       - demo-network
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  postgres_inventory_data:
   mongo_data:
   redis_data:
 

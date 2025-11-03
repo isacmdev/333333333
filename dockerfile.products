@@ -5,7 +5,7 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Clona el repositorio
+# Clona el repositorio de PRODUCTS
 RUN git clone https://github.com/isacmdev/aaaaaaaaaaa.git .
 
 # Construye específicamente el JAR (no WAR)
